@@ -12,7 +12,7 @@ describe('evalExpression', () => {
   it('should gracefully handle runtime errors', () => {
     const evalString = 'nonExistantFunction()'
     const { error } = evalExpression(evalString)
-    expect(error.constructor).to.equal(Error)
+    expect(error.constructor).to.equal(ReferenceError)
   })
 })
 
@@ -39,3 +39,4 @@ describe('evalValue', () => {
     expect(error.message).to.equal("Unexpected token '*'")
   })
 })
+

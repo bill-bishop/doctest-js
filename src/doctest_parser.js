@@ -1,103 +1,40 @@
-import { Parser } from 'jison'
-import Lexer from 'lex'
+import { parse } from 'comment-parser'
 
-// parser states
-const NO_STATE = 'NO_STATE'
-const IN_COMMENT = 'IN_COMMENT'
-const IN_EXAMPLE = 'IN_EXAMPLE'
-const IN_RETURN_VALUE = 'IN_RETURN_VALUE'
-
-// basic grammar
-const grammar = {
-  bnf: {
-    expression: [['EOF', 'return $1;']],
-  },
-}
-
-export default text => {
-  // lexer parser setup
-  const lexer = new Lexer()
-  const parser = new Parser(grammar)
-  parser.lexer = lexer
+export default function parseDoctests(fileContent) {
+  const blocks = parse(fileContent)
   const doctests = []
-  let doctestIndex = -1
-  let state = NO_STATE
-  let isClass = false
-  // begin multi-line comment
-  lexer.addRule(/\/\*/, () => {
-    if (state === NO_STATE) {
-      state = IN_COMMENT
+
+  for (const block of blocks) {
+    for (const tag of block.tags) {
+      if (tag.tag !== 'example') continue
+
+      // Reconstruct from raw source lines, stripping comment markers
+      const lines = tag.source.map(s => {
+        // Get the raw source line and strip leading comment markers
+        let line = s.source
+        // Remove leading whitespace, *, /**, /*, // (but not //=>), etc.
+        line = line.replace(/^\s*\/\*\*?/, '')          // /* or /** at start
+        line = line.replace(/^\s*\*\/?/, '')             // * or */ at start  
+        line = line.replace(/^\s*\/\/(?!=)/, '')         // // at start, but NOT //=>
+        line = line.trim()
+        return line
+      }).filter(line => line.length > 0)
+      
+      // Join lines and remove @example prefix
+      let body = lines.join('\n')
+      body = body.replace(/^@example\s*/, '')
+
+      const separatorIndex = body.indexOf('//=>')
+      if (separatorIndex === -1) continue
+
+      const resultString = body.slice(0, separatorIndex).trim().replace(/\n\s*/g, ' ')
+      const stringToEval = body.slice(separatorIndex + 4).trim().replace(/\n\s*/g, ' ')
+
+      if (resultString === '') continue
+
+      doctests.push({ resultString, stringToEval })
     }
-  })
+  }
 
-  // end multi-line comment
-  lexer.addRule(/\*\//, () => {
-    if (state === IN_RETURN_VALUE) {
-      state = NO_STATE
-    }
-  })
-
-  // begin doctest example
-  lexer.addRule(/@example/, () => {
-    if (state === IN_COMMENT || state === IN_RETURN_VALUE) {
-      state = IN_EXAMPLE
-      doctestIndex += 1
-      doctests[doctestIndex] = {
-        resultString: '',
-        stringToEval: '',
-      }
-    }
-  })
-
-  // begin doctest return value
-  lexer.addRule(/\/\/=>/, () => {
-    if (state === IN_EXAMPLE) {
-      state = IN_RETURN_VALUE
-    }
-  })
-
-  // ignore multi-line comment start
-  // this is a bit naive as it only uses spaces/indentation to cleanse
-  lexer.addRule(/\n\* /, () => {})
-  lexer.addRule(/\r\n\* /, () => {})
-  lexer.addRule(/\n \* /, () => {})
-  lexer.addRule(/\r\n \* /, () => {})
-  lexer.addRule(/\n  \* /, () => {})
-  lexer.addRule(/\r\n  \* /, () => {})
-  lexer.addRule(/\n   \* /, () => {})
-  lexer.addRule(/\r\n   \* /, () => {})
-  lexer.addRule(/\n    \* /, () => {})
-  lexer.addRule(/\r\n    \* /, () => {})
-  lexer.addRule(/\n     \* /, () => {})
-  lexer.addRule(/\r\n     \* /, () => {})
-  lexer.addRule(/\n      \* /, () => {})
-  lexer.addRule(/\r\n      \* /, () => {})
-
-  // add chars to appropriate section
-  
-  lexer.addRule(/\n|./, lexme => {
-    if (state === IN_EXAMPLE) {
-      doctests[doctestIndex].resultString += lexme
-    } else if (state === IN_RETURN_VALUE) {
-      doctests[doctestIndex].stringToEval += lexme
-    }
-  })
-
-  lexer.addRule(/\r\n|./, lexme => {
-    if (state === IN_EXAMPLE) {
-      doctests[doctestIndex].resultString += lexme
-    } else if (state === IN_RETURN_VALUE) {
-      doctests[doctestIndex].stringToEval += lexme
-    }
-  })
-
-  // eof
-  lexer.addRule(/$/, () => 'EOF')
-  parser.parse(text)
-  // trim everythhing
-  const sanitizedDoctests = doctests.map(({ resultString, stringToEval }) => ({
-    resultString: resultString.trim(),
-    stringToEval: stringToEval.trim(),
-  }))
-  return sanitizedDoctests
+  return doctests
 }

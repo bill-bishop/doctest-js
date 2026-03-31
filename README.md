@@ -13,6 +13,7 @@ Write [JSDoc](http://usejsdoc.org/about-getting-started.html) style doc examples
 - [Advanced](#advanced)
   - [Multiple tests](#multiple-tests)
   - [Testing classes](#testing-classes)
+  - [Accessing imports](#accessing-imports)
 - [Usage online](#usage-online)
 - [Contributing](#contributing)
 - [Credits](#credits)
@@ -106,6 +107,28 @@ const { Arithmetic } = require('./Arithmetic.js')
 describe('passing doctest', () => {
   doctest('./Arithmetic.js', { instance: new Arithmetic() })
 })
+```
+
+### Accessing imports
+
+Use the `imports` option when your code under test or your examples require imported references:
+
+```js
+// myMath.js
+import { add } from './math'
+
+/**
+ * @example add(1, 2)
+ * //=> 3
+ */
+export const sum = (a, b) => add(a, b)
+```
+
+```js
+// myMath.test.js
+import * as math from './math'
+
+doctest('src/myMath.js', { imports: { add: math.add } })
 ```
 
 ## Usage online 

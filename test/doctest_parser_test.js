@@ -16,10 +16,49 @@ describe('parseDocs', () => {
     expect(secondDoctest.resultString).to.equal("titleize('w')")
     expect(secondDoctest.stringToEval).to.equal("'W'")
 
-    expect(thirdDoctest.resultString).to.equal("stringData(  'woah')")
-    expect(thirdDoctest.stringToEval).to.equal('{  length: 4,  vowels: 2,  consonants: 2}')
+    expect(thirdDoctest.resultString).to.equal("stringData( 'woah' )")
+    expect(thirdDoctest.stringToEval).to.equal('{ length: 4, vowels: 2, consonants: 2 }')
 
     expect(fourthDoctest.resultString).to.equal("split('why am i doing this?', ' ')")
     expect(fourthDoctest.stringToEval).to.equal("[ 'why', 'am', 'i', 'doing', 'this?' ]")
+  })
+})
+
+describe('parseDoctests — line-comment bleed (Fix 5)', () => {
+  it('should NOT parse @example blocks inside // line comments', () => {
+    const source = `
+// @example
+// brokenFunction()
+// //=> 'should not appear'
+
+/**
+ * @example
+ * realFunction()
+ * //=> 'real'
+ */
+`
+    const results = parseDoctests(source)
+    expect(results).to.have.length(1)
+    expect(results[0].resultString).to.equal('realFunction()')
+    expect(results[0].stringToEval).to.equal("'real'")
+  })
+
+  it('should NOT parse @example blocks inside /* */ non-JSDoc comments', () => {
+    const source = `
+/* @example
+ * brokenFunction()
+ * //=> 'should not appear'
+ */
+
+/**
+ * @example
+ * realFunction()
+ * //=> 'real'
+ */
+`
+    const results = parseDoctests(source)
+    expect(results).to.have.length(1)
+    expect(results[0].resultString).to.equal('realFunction()')
+    expect(results[0].stringToEval).to.equal("'real'")
   })
 })

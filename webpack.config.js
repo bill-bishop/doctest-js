@@ -6,8 +6,9 @@ module.exports = {
     app: './src/index.js',
   },
   output: {
-    library: 'index',
+    path: path.resolve(__dirname, 'dist'),
     libraryTarget: 'commonjs2',
+    libraryExport: 'default',
     filename: 'index.js',
   },
   resolve: {
@@ -21,7 +22,13 @@ module.exports = {
     rules: [
       {
         test: /\.js$/,
-        use: ['babel-loader'],
+        use: {
+          loader: 'babel-loader',
+          options: {
+            babelrc: false,
+            presets: ['@babel/preset-env']
+          }
+        },
         include: [path.join(__dirname, 'src')],
         exclude: /node_modules/,
       },
